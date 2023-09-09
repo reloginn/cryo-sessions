@@ -12,9 +12,3 @@
 //! let session = redis.get_session_by_uuid(uuid.to_owned()).await.unwrap();
 //! println!("{}", session);
 //! ```
-
-mod redis;
-mod session;
-mod uuid;
-
-pub use crate::{redis::Redis, session::Session, uuid::Uuid};

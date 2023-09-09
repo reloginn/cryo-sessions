@@ -1,6 +1,7 @@
 use crate::Uuid;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
+#[derive(Debug, Clone)]
 pub struct Session {
     pub session: String,
     pub uuid: Uuid,
@@ -17,6 +18,12 @@ impl Session {
             uuid,
         }
     }
+    /// This method creates a Session structure from two values (this is done for more convenient work)
+    /// 
+    /// # Example
+    /// ```rust
+    /// let session = Session::from_values(sess, Uuid::new()); // or Uuid::from("enter uuid here")
+    /// ```
     pub fn from_values(session: String, uuid: Uuid) -> Self {
         Self { session, uuid }
     }

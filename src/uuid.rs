@@ -1,6 +1,5 @@
 use rand::Rng;
 
-/// Имплементация UUIDv4.
 #[derive(Debug, Clone)]
 pub struct Uuid {
     pub uuid: String,
