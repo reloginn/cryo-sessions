@@ -3,6 +3,8 @@ This crate is intended for people who want to store user sessions locally in Red
 
 # Example
 ```rust
+use cryo_sessions::{Redis, Uuid, Session};
+
 let uuid = Uuid::new();
 let redis = Redis::from_env(); // this method takes the redis url from the REDIS_URL environment variable
 redis.insert_session(Session::new(uuid.to_owned()), Duration::from_secs(2400)).await.is_ok();

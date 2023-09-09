@@ -1,9 +1,12 @@
 [package]
 name = "cryo-sessions"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["asahi <hexeo.dev@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/reloginn/cryo-sessions"
+documentation = "https://docs.rs/cryo-sessions/latest/cryo-sessions"
+description = "Crate for session management using Redis"
 
 [dependencies]
 rand = "0.8.5"
