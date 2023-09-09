@@ -31,19 +31,26 @@ impl Redis {
             .await?;
         Ok(())
     }
-    pub async fn get_uuid_by_session(&self, session: String) -> RedisResult<Uuid> {
+    pub async fn get_uuid_by_session(&self, session: String) -> RedisResult<Option<Uuid>> {
         let mut connection = self.client.get_tokio_connection().await?;
         let mut scan = connection
             .scan_match::<_, String>(format!("*:{}", session.trim()))
             .await?;
-        if let Some(next) = scan.next_item().await {
+        Ok(scan.next_item().await.and_then(|next| {
             let (uuid, _) = next.split_once(':').unwrap_or_default();
-            Ok(Uuid::from(uuid))
-        } else {
-            Ok(Default::default())
-        }
+            Some(Uuid::from(uuid))
+        }))
     }
-    pub async fn get_session_by_uuid() {}
+    pub async fn get_session_by_uuid(&self, uuid: Uuid) -> RedisResult<Option<Session>> {
+        let mut connection = self.client.get_tokio_connection().await?;
+        let mut scan = connection
+            .scan_match::<_, String>(format!("{}:*", uuid.uuid))
+            .await?;
+        Ok(scan.next_item().await.and_then(|next| {
+            let (_, session) = next.split_once(':').unwrap_or_default();
+            Some(Session::from_values(session.into(), uuid))
+        }))
+    }
     pub async fn get_sessions_by_uuid(&self, uuid: Uuid) -> RedisResult<Vec<String>> {
         let mut connection = self.client.get_tokio_connection().await?;
         let mut sessions = Vec::new();
