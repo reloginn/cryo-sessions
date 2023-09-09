@@ -52,10 +52,12 @@ impl Redis {
         let mut scan = connection
             .scan_match::<_, String>(format!("*:{}", session.trim()))
             .await?;
-        Ok(scan.next_item().await.and_then(|next| {
-            let (uuid, _) = next.split_once(':').unwrap_or_default();
-            Some(Uuid::from(uuid))
-        }))
+        if let Some(next) = scan.next_item().await {
+            let (uuid, _) = next.split_once(':').expect("Can not split item into the values");
+            Ok(Some(Uuid::from(uuid)))
+        } else {
+            Ok(None)
+        }
     }
     /// This method gets Session by Uuid.
     /// 
@@ -71,10 +73,12 @@ impl Redis {
         let mut scan = connection
             .scan_match::<_, String>(format!("{}:*", uuid.uuid))
             .await?;
-        Ok(scan.next_item().await.and_then(|next| {
-            let (_, session) = next.split_once(':').unwrap_or_default();
-            Some(Session::from_values(session.into(), uuid))
-        }))
+        if let Some(next) = scan.next_item().await {
+            let (_, session) = next.split_once(':').expect("Can not split item into the values");
+            Ok(Some(Session::from_values(session.into(), uuid)))
+        } else {
+            Ok(None)
+        }
     }
     /// This method gets all available user sessions.
     /// 
@@ -92,7 +96,8 @@ impl Redis {
             .scan_match::<_, String>(format!("{}:*", &uuid.uuid))
             .await?;
         while let Some(next) = scan.next_item().await {
-            sessions.push(next)
+            let (_, session) = next.split_once(':').expect("Can not split item into the values");
+            sessions.push(session.into())
         }
         Ok(sessions)
     }
