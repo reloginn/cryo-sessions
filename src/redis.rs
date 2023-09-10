@@ -1,8 +1,8 @@
-use std::time::Duration;
+use std::{time::Duration, collections::HashSet};
 
 use redis::{AsyncCommands, Client, RedisResult};
 
-use crate::{session::Session, uuid::Uuid};
+use crate::{session::{Session, SessionInfo}, uuid::Uuid};
 
 #[derive(Debug, Clone)]
 pub struct Redis {
@@ -25,16 +25,17 @@ impl Redis {
     /// # Example
     /// ```rust
     /// let redis = Redis::from_env();
-    /// redis.insert_session(Session::new(Uuid::new()), Duration::from_secs(3400)).await.is_ok(); // Duration indicates how long this record will live in the database
+    /// redis.new_session(Session::new(), SessionInfo::new(Uuid::new(), "Mozilla(5.0)".into()), Duration::from_secs(3400)).await.is_ok(); // Duration indicates how long this record will live in the database
     /// ```
-    pub async fn insert_session(&self, session: Session, duration: Duration) -> RedisResult<()> {
+    pub async fn new_session(&self, session: Session, session_info: SessionInfo, duration: Duration) -> RedisResult<()> {
         let mut connection = self.client.get_tokio_connection().await?;
-        connection
-            .set_ex(
-                format!("{}:{}", session.uuid.uuid, session.session.trim()),
-                session.uuid.uuid,
-                duration.as_secs() as usize,
-            )
+        let key = session.session().trim();
+        redis::pipe()
+            .hset(key, "uuid", &session_info.uuid().uuid)
+            .hset(key, "user_agent", session_info.user_agent())
+            .ignore()
+            .expire(key, duration.as_secs() as usize)
+            .query_async(&mut connection)
             .await?;
         Ok(())
     }
@@ -43,62 +44,13 @@ impl Redis {
     /// # Example
     /// ```rust
     /// let redis = Redis::from_env();
-    /// const SESS: String = String::from("put into this session id");
-    /// let uuid = redis.get_uuid_by_session(SESS).await.unwrap().unwrap();
-    /// println!("{:?}", uuid);
+    /// let info = redis.get_information_by_session(Session::from("put into this session")).await.unwrap().unwrap();
+    /// println!("{:?}", info);
     /// ```
-    pub async fn get_uuid_by_session(&self, session: String) -> RedisResult<Option<Uuid>> {
+    pub async fn get_information_by_session(&self, session: Session) -> RedisResult<SessionInfo> {
         let mut connection = self.client.get_tokio_connection().await?;
-        let mut scan = connection
-            .scan_match::<_, String>(format!("*:{}", session.trim()))
-            .await?;
-        if let Some(next) = scan.next_item().await {
-            let (uuid, _) = next.split_once(':').expect("Can not split item into the values");
-            Ok(Some(Uuid::from(uuid)))
-        } else {
-            Ok(None)
-        }
-    }
-    /// This method gets Session by Uuid.
-    /// 
-    /// # Example
-    /// ```rust
-    /// let redis = Redis::from_env();
-    /// let uuid = Uuid::from("put into this uuid");
-    /// let session = redis.get_session_by_uuid(uuid).await.unwrap().unwrap();
-    /// println!("{:?}", session);
-    /// ```
-    pub async fn get_session_by_uuid(&self, uuid: Uuid) -> RedisResult<Option<Session>> {
-        let mut connection = self.client.get_tokio_connection().await?;
-        let mut scan = connection
-            .scan_match::<_, String>(format!("{}:*", uuid.uuid))
-            .await?;
-        if let Some(next) = scan.next_item().await {
-            let (_, session) = next.split_once(':').expect("Can not split item into the values");
-            Ok(Some(Session::from_values(session.into(), uuid)))
-        } else {
-            Ok(None)
-        }
-    }
-    /// This method gets all available user sessions.
-    /// 
-    /// # Example
-    /// ```rust
-    /// let redis = Redis::from_env();
-    /// let uuid = Uuid::from("put into this uuid");
-    /// let sessions = redis.get_sessions_by_uuid(uuid).await.unwrap();
-    /// sessions.iter().for_each(|val| println!("{}", val));
-    /// ``` 
-    pub async fn get_sessions_by_uuid(&self, uuid: Uuid) -> RedisResult<Vec<String>> {
-        let mut connection = self.client.get_tokio_connection().await?;
-        let mut sessions = Vec::new();
-        let mut scan = connection
-            .scan_match::<_, String>(format!("{}:*", &uuid.uuid))
-            .await?;
-        while let Some(next) = scan.next_item().await {
-            let (_, session) = next.split_once(':').expect("Can not split item into the values");
-            sessions.push(session.into())
-        }
-        Ok(sessions)
+        let info: HashSet<String> = connection
+            .hvals(session.session().trim()).await?;
+        Ok(SessionInfo::new(Uuid::from(info.get("uuid").expect("Can not get uuid").as_str()), info.get("user_agent").expect("Can not get user agent").into()))
     }
 }
