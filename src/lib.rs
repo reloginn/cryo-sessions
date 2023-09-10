@@ -5,12 +5,11 @@
 //! ```rust
 //! let uuid = Uuid::new();
 //! let redis = Redis::from_env(); // this method takes the redis url from the REDIS_URL environment variable
-//! redis.insert_session(Session::new(uuid.to_owned()), Duration::from_secs(2400)).await.is_ok();
-//! redis.insert_session(Session::new(uuid.to_owned()), Duration::from_secs(3400)).await.is_ok();
-//! let sessions = redis.get_sessions_by_uuid(uuid.to_owned()).await.unwrap();
-//! sessions.iter().for_each(|val| println!("{}", val));
-//! let session = redis.get_session_by_uuid(uuid.to_owned()).await.unwrap();
-//! println!("{}", session);
+//! let session = Session::new();
+//! redis.new_session(session.to_owned(), SessionInfo::new(uuid.to_owned(), "Mozilla(5.0)".into()), Duration::from_secs(2400)).await.is_ok();
+//! redis.new_session(session.to_owned(), SessionInfo::new(uuid.to_owned(), "Apple Safari".into()), Duration::from_secs(3400)).await.is_ok();
+//! let info = redis.get_information_by_session(session).await.unwrap();
+//! println!("{:?}", info);
 //! ```
 
 mod redis;
