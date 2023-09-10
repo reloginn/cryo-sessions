@@ -16,4 +16,4 @@ mod redis;
 mod session;
 mod uuid;
 
-pub use crate::{redis::Redis, session::Session, uuid::Uuid};
+pub use crate::{redis::Redis, session::{Session, SessionInfo}, uuid::Uuid};
